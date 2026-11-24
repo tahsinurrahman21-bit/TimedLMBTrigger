@@ -1,0 +1,64 @@
+# Builds the Windows executable on a clean GitHub runner and attaches it to a
+# GitHub Release. Trigger it by pushing a tag such as v1.0.0, or run it manually
+# from the Actions tab to get a test build as a downloadable artifact.
+name: Build Windows release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          architecture: x64
+
+      - name: Install build dependency
+        run: python -m pip install -r requirements-build.txt
+
+      - name: Run automated tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Build executable
+        run: >
+          python -m PyInstaller --noconfirm --clean --onefile --windowed --noupx
+          --name TimedLMBTrigger --distpath dist --workpath build/pyinstaller
+          --specpath build src/app.py
+
+      - name: Package ZIP
+        shell: pwsh
+        run: |
+          $version = if ($env:GITHUB_REF_TYPE -eq "tag") { $env:GITHUB_REF_NAME } else { "dev-$($env:GITHUB_SHA.Substring(0,7))" }
+          $name = "TimedLMBTrigger-$version-windows-x64"
+          $stage = "release/$name"
+          New-Item -ItemType Directory -Force $stage | Out-Null
+          Copy-Item dist/TimedLMBTrigger.exe, README.md, LICENSE, THIRD-PARTY-NOTICES.md, CHANGELOG.md $stage
+          python tools/collect_licenses.py "$stage/licenses"
+          Compress-Archive -Path "$stage/*" -DestinationPath "release/$name.zip" -Force
+          "$((Get-FileHash "release/$name.zip" -Algorithm SHA256).Hash)  $name.zip" | Out-File -Encoding ascii "release/$name.zip.sha256"
+          "ZIP_NAME=$name" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ZIP_NAME }}
+          path: release/${{ env.ZIP_NAME }}.zip*
+
+      - name: Publish GitHub Release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: pwsh
+        run: >
+          gh release create "$env:GITHUB_REF_NAME"
+          "release/$env:ZIP_NAME.zip" "release/$env:ZIP_NAME.zip.sha256"
+          --title "Timed LMB Trigger $env:GITHUB_REF_NAME"
+          --notes "Download the ZIP below, extract it, and run TimedLMBTrigger.exe. No Python needed. See CHANGELOG.md for changes and README.md for instructions."

@@ -1,0 +1,58 @@
+# Python bytecode and test caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local Python environments
+.venv/
+venv/
+env/
+.build-venv/
+
+# Generated build output and PyInstaller artifacts
+/build/
+/dist/
+/work/
+*.spec
+*.exe
+*.dll
+*.pyd
+*.log
+*.log.*
+
+# Release packaging output (attach ZIPs to GitHub Releases instead)
+/release/
+*.zip
+*.zip.sha256
+
+# User settings and temporary writes
+/config/settings.json
+/config/settings.tmp
+/logs/
+*.tmp
+
+# Local verification notes
+/VERIFICATION.md
+
+# IDE and operating system files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Secrets, local environment files, and signing credentials
+.env
+.env.*
+!.env.example
+secrets.*
+credentials.*
+*.pem
+*.key
+*.p12
+*.pfx
